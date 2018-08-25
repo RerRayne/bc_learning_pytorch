@@ -51,8 +51,8 @@ def parse():
     # Default settings (nEpochs will be doubled if opt.BC)
     default_settings = dict()
     milistones = get_degault_milistones(opt.nEpochs)
-    default_settings['esc50'] = {'envnet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones}}
-    default_settings['esc10'] = {'envnet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones}}
+    default_settings['esc50'] = {'EnvNet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones}}
+    default_settings['esc10'] = {'EnvNet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones}}
 
     for key in ['nEpochs', 'LR', 'milestones']:
         if eval('opt.{}'.format(key)) == -1:

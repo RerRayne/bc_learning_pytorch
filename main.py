@@ -153,6 +153,7 @@ def train(model, optimizer, loss, training_generator):
 
     for batch in training_generator:
         features, labels = batch[IMG], batch[LABEL]
+        print(features.shape)
         output = model.forward(features)
 
         loss = loss(output, labels.type(FloatTensor))

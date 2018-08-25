@@ -1,5 +1,7 @@
 .DS_Store
 .idea
-./venv/*
-./__pycache__/*
-
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+ds/
