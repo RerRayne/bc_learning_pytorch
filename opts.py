@@ -47,12 +47,16 @@ def parse():
     if opt.netType == 'EnvNet':
         opt.fs = 16000
         opt.inputLength = 24014
-
+    elif opt.netType == 'EnvNet2':
+        opt.fs = 44100
+        opt.inputLength = 66650
     # Default settings (nEpochs will be doubled if opt.BC)
     default_settings = dict()
     milistones = get_degault_milistones(opt.nEpochs)
-    default_settings['esc50'] = {'EnvNet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones}}
-    default_settings['esc10'] = {'EnvNet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones}}
+    default_settings['esc50'] = {'EnvNet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones},
+                                 'EnvNet2': {'nEpochs': 1000, 'LR': 0.1, 'schedule': [0.3, 0.6, 0.9]}}
+    default_settings['esc10'] = {'EnvNet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones},
+                                 'EnvNet2': {'nEpochs': 600, 'LR': 0.01, 'schedule': [0.5, 0.75]}}
 
     for key in ['nEpochs', 'LR', 'milestones']:
         if eval('opt.{}'.format(key)) == -1:
