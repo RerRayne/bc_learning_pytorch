@@ -27,6 +27,7 @@ def parse():
     parser.add_argument('--weightDecay', type=float, default=5e-4)
     parser.add_argument('--nesterov', type=bool, default=True)
     parser.add_argument('--momentum', type=float, default=0.9)
+    parser.add_argument('--tensorboardDir', type=str, default=None)
 
     opt = parser.parse_args()
 

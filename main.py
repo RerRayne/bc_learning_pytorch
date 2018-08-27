@@ -5,6 +5,8 @@ import time
 import torch
 import pickle as pkl
 
+from tensorboardX import SummaryWriter
+
 from torch.nn.modules.loss import KLDivLoss
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
@@ -145,7 +147,7 @@ def get_data_generators(opt, test_fold):
     return training_generator, validation_generator
 
 
-def train(model, optimizer, loss, training_generator):
+def train(model, optimizer, loss_fn, training_generator):
     # train model
     model.train(True)
     epoch_train_loss = []
@@ -156,7 +158,7 @@ def train(model, optimizer, loss, training_generator):
         print(features.shape)
         output = model.forward(features)
 
-        loss = loss(output, labels.type(FloatTensor))
+        loss = loss_fn(output, labels.type(FloatTensor))
         loss.backward()
 
         optimizer.step()
@@ -205,6 +207,8 @@ if __name__ == '__main__':
     global_val_error = []
     n_folds = opt.nFolds
 
+    writer = SummaryWriter(log_dir=opt.tensorboardDir) if opt.tensorboardDir is not None else None
+
     for test_fold in opt.splits:
         model = create_model(opt)
         optimizer = create_optimizer(model, opt)
@@ -230,8 +234,16 @@ if __name__ == '__main__':
 
             epoch_val_loss, val_epoch_rate = validate(model, validation_generator)
 
-            train_loss.append(np.mean(epoch_train_loss))
-            val_loss.append(np.mean(epoch_val_loss))
+            epoch_train_loss = np.mean(epoch_train_loss)
+            epoch_val_loss = np.mean(epoch_val_loss)
+            train_loss.append(epoch_train_loss)
+            val_loss.append(epoch_val_loss)
+
+            writer.add_scalars('envnet/loss', {'train': epoch_train_loss,
+                                               'val': epoch_val_loss}, epoch)
+            writer.add_scalars('envnet/error_rate', {
+                'train': accuracy_on_batch(epoch_error_rate, training_generator, opt.batchSize),
+                'val': accuracy_on_batch(val_epoch_rate, validation_generator, 1)}, epoch)
 
             train_error_rate.append(accuracy_on_batch(epoch_error_rate, training_generator, opt.batchSize))
             val_error_rate.append(accuracy_on_batch(val_epoch_rate, validation_generator, 1))
@@ -247,6 +259,7 @@ if __name__ == '__main__':
         global_val_loss.append(val_loss)
         global_val_error.append(val_error_rate)
 
+    writer.close()
     report = {
                 "train_loss": global_train_loss,
                 "train_acc": global_train_error,
