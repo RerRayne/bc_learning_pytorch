@@ -133,10 +133,14 @@ def get_data_generators(opt, test_fold):
               'num_workers': 1}
     training_generator = data.DataLoader(train_set, **params)
 
+#     params = {'batch_size': 1,
+#               'shuffle': True,
+#               'num_workers': 1}
+#     validation_generator = cudify(data.DataLoader(val_set, **params))
     params = {'batch_size': 1,
               'shuffle': True,
               'num_workers': 1}
-    validation_generator = cudify(data.DataLoader(val_set, **params))
+    validation_generator = data.DataLoader(val_set, **params)
 
     if use_cuda(opt):
         training_generator = cudify(training_generator)
@@ -154,15 +158,15 @@ def train(model, optimizer, loss, training_generator):
     for batch in training_generator:
         features, labels = batch[IMG], batch[LABEL]
         print(features.shape)
-        output = model.forward(features)
+        output = model.forward(features.type(FloatTensor))
 
-        loss = loss(output, labels.type(FloatTensor))
-        loss.backward()
+        batch_loss = loss(output, labels.type(FloatTensor))
+        batch_loss.backward()
 
         optimizer.step()
         optimizer.zero_grad()
 
-        epoch_train_loss.append(tensor_to_numpy(loss.data).reshape((1))[0])
+        epoch_train_loss.append(tensor_to_numpy(batch_loss.data).reshape((1))[0])
 
         labels = labels.argmax(dim=1).reshape((-1))
         error = tensor_to_numpy(accuracy(output, labels)) * labels.size()[-1]
@@ -177,8 +181,9 @@ def validate(model, validation_generator):
     epoch_val_loss = []
     val_epoch_rate = 0.0
     for batch in validation_generator:
-        features, labels = batch[IMG].reshape((-1, 1, 1, opt.inputLength)), batch[LABEL]
-        output = model.forward(features).mean(dim=0).reshape((1, 10))
+#         features, labels = batch[IMG].reshape((-1, 1, 1, opt.inputLength)), batch[LABEL]
+        features, labels = batch[IMG], batch[LABEL]
+        output = model.forward(features.type(FloatTensor)).mean(dim=0).reshape((1, 10))
 
         loss = kl_loss(output, labels.type(FloatTensor))
 
@@ -235,6 +240,9 @@ if __name__ == '__main__':
 
             train_error_rate.append(accuracy_on_batch(epoch_error_rate, training_generator, opt.batchSize))
             val_error_rate.append(accuracy_on_batch(val_epoch_rate, validation_generator, 1))
+            
+            print("train_acc: {}, val_acc: {}".format(train_error_rate, val_error_rate))
+            
 
         torch.save(model, os.path.join(opt.save, "model_{}.bin".format(test_fold)))
         draw_progress(train_loss, val_loss,

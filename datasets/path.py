@@ -1,0 +1,1 @@
+PATH_TO_MODULE = "/workspace/jgusak/scatnet_python"

@@ -34,7 +34,9 @@ def get_train_transform(length=T):
 def get_test_transform(length=T):
     transforms = [ToPILImage(),
                   Pad((length // 2, 0)),
-                  TenCrop((1, length)),
-                  Lambda(lambda crops: torch.stack([ToTensor()(crop) for crop in crops])),
+#                   TenCrop((1, length)),
+                  RandomCrop((1, length)),
+                  ToTensor(),
+#                   Lambda(lambda crops: torch.stack([ToTensor()(crop) for crop in crops])),
                   Centring(MAX_INT)]
     return torchvision.transforms.Compose([ConvertToTuple(default_transforms) for default_transforms in transforms])

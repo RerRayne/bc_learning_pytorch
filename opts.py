@@ -10,7 +10,7 @@ def parse():
 
     # General settings
     parser.add_argument('--dataset', required=True, choices=['esc10', 'esc50'])
-    parser.add_argument('--netType', required=True, choices=['EnvNet'])
+    parser.add_argument('--netType', required=True, choices=['EnvNet', 'CNN1'])
     parser.add_argument('--data', required=True, help='Path to dataset')
     parser.add_argument('--split', type=int, default=-1, help='esc: 1-5, urbansound: 1-10 (-1: run on all splits)')
     parser.add_argument('--save', default='None', help='Directory to save the results')
@@ -50,13 +50,22 @@ def parse():
     elif opt.netType == 'EnvNet2':
         opt.fs = 44100
         opt.inputLength = 66650
+    elif opt.netType == 'CNN1':
+        opt.fs = 16000
+        opt.inputLength = 2**16
+        
+        
     # Default settings (nEpochs will be doubled if opt.BC)
     default_settings = dict()
     milistones = get_degault_milistones(opt.nEpochs)
     default_settings['esc50'] = {'EnvNet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones},
                                  'EnvNet2': {'nEpochs': 1000, 'LR': 0.1, 'schedule': [0.3, 0.6, 0.9]}}
     default_settings['esc10'] = {'EnvNet': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones},
-                                 'EnvNet2': {'nEpochs': 600, 'LR': 0.01, 'schedule': [0.5, 0.75]}}
+                                 'EnvNet2': {'nEpochs': 600, 'LR': 0.01, 'schedule': [0.5, 0.75]},
+                                 'CNN1': {'nEpochs': 600, 'LR': 0.01, 'milestones': milistones}
+                                }
+
+
 
     for key in ['nEpochs', 'LR', 'milestones']:
         if eval('opt.{}'.format(key)) == -1:
