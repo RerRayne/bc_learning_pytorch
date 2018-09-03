@@ -8,15 +8,14 @@ from .transforms import get_train_transform, get_test_transform
 
 from .utils import IMG, LABEL, numpy_one_hot, mix, tensor_to_numpy
 
-from .opts import SIGNAL_LENGTH, PRECISION 
 
 
 class BCDatasets(data.Dataset):
     def __init__(self, data_path, dataset_name,
                  sr, exclude, 
                  is_train = True,
-                 signal_length = SIGNAL_LENGTH,
-                 mix=False, precision = PRECISION):
+                 signal_length = 2**16,
+                 mix=False, precision = np.float32):
         
         self.signal_length = signal_length
         

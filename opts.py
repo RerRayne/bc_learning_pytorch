@@ -1,5 +1,6 @@
 import os
 import argparse
+import numpy as np
 
 AVERAGING_WINDOW = 2**10
 SIGNAL_LENGTH = 2**16
