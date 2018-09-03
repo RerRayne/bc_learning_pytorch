@@ -7,8 +7,6 @@ IMG = 'img'
 LABEL = 'label'
 
 MAX_INT = 32768.0
-#T = 24000
-T = 2**16
 
 Image.MAX_IMAGE_PIXELS = None
 

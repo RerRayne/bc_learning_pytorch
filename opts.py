@@ -1,10 +1,16 @@
 import os
 import argparse
 
+AVERAGING_WINDOW = 2**10
+SIGNAL_LENGTH = 2**16
+PRECISION = np.float32
+
 
 def parse():
     def get_degault_milistones(nEpochs):
-        return [int(0.5 * nEpochs), int(0.75 * nEpochs)]
+#         return [int(0.5 * nEpochs), int(0.75 * nEpochs)]
+        return [int(0.3 * nEpochs), int(0.6 * nEpochs)]
+    
 
     parser = argparse.ArgumentParser(description='BC learning for sounds')
 
@@ -23,10 +29,11 @@ def parse():
     parser.add_argument('--LR', type=float, default=-1, help='Initial learning rate')
     parser.add_argument('--milestones', type=float, nargs='*', default=-1, help='When decrease LR')
     parser.add_argument('--gamma', type=float, default=0.1, help='decreasing coeff')
-    parser.add_argument('--batchSize', type=int, default=64)
+    parser.add_argument('--batchSize', type=int, default=110)
     parser.add_argument('--weightDecay', type=float, default=5e-4)
     parser.add_argument('--nesterov', type=bool, default=True)
     parser.add_argument('--momentum', type=float, default=0.9)
+    parser.add_argument('--tensorboardDir', type=str, default="/workspace/jgusak/bc_learning_pytorch_new/tensorboard_logdir")
 
     opt = parser.parse_args()
 

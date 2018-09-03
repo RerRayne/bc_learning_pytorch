@@ -5,6 +5,8 @@ import time
 import torch
 import pickle as pkl
 
+from tensorboardX import SummaryWriter
+
 from torch.nn.modules.loss import KLDivLoss
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
@@ -12,7 +14,7 @@ from torch.utils import data
 
 import models
 import opts
-from datasets import BCDatasets, tensor_to_numpy, get_train_transform, get_test_transform, IMG, LABEL
+from datasets import BCDatasets, tensor_to_numpy, get_train_transform, get_test_transform, IMG, LABEL, Scattering
 from draw_process import draw_progress
 from models import weights_init
 
@@ -21,6 +23,8 @@ FloatTensor = None
 LongTensor = None
 ByteTensor = None
 
+
+import time
 
 class iter_len:
     def __init__(self, enumerator, l):
@@ -120,27 +124,27 @@ def get_data_generators(opt, test_fold):
                            opt.dataset,
                            opt.sr,
                            exclude_train,
-                           transform=get_train_transform(opt.inputLength),
+                           is_train=True,
                            mix=opt.BC)
     val_set = BCDatasets(opt.data,
                          opt.dataset,
                          opt.sr,
                          exclude_val,
-                         transform=get_test_transform(opt.inputLength))
+                         is_train=False)
 
     params = {'batch_size': opt.batchSize,
               'shuffle': True,
               'num_workers': 1}
     training_generator = data.DataLoader(train_set, **params)
 
-#     params = {'batch_size': 1,
-#               'shuffle': True,
-#               'num_workers': 1}
-#     validation_generator = cudify(data.DataLoader(val_set, **params))
     params = {'batch_size': 1,
               'shuffle': True,
               'num_workers': 1}
     validation_generator = data.DataLoader(val_set, **params)
+#     params = {'batch_size': 1,
+#               'shuffle': True,
+#               'num_workers': 1}
+#     validation_generator = data.DataLoader(val_set, **params)
 
     if use_cuda(opt):
         training_generator = cudify(training_generator)
@@ -149,7 +153,7 @@ def get_data_generators(opt, test_fold):
     return training_generator, validation_generator
 
 
-def train(model, optimizer, loss, training_generator):
+def train(model, optimizer, loss, training_generator, scat):
     # train model
     model.train(True)
     epoch_train_loss = []
@@ -157,7 +161,13 @@ def train(model, optimizer, loss, training_generator):
 
     for batch in training_generator:
         features, labels = batch[IMG], batch[LABEL]
-        print(features.shape)
+        
+        start = time.clock()
+        features = torch.FloatTensor(scat.scattering_transform(tensor_to_numpy(features)))
+        end = time.clock()
+        
+        print(features.shape, end-start)
+
         output = model.forward(features.type(FloatTensor))
 
         batch_loss = loss(output, labels.type(FloatTensor))
@@ -177,12 +187,21 @@ def train(model, optimizer, loss, training_generator):
     return model, optimizer, epoch_train_loss, epoch_error_rate
 
 
-def validate(model, validation_generator):
+def validate(model, validation_generator, scat):
     epoch_val_loss = []
     val_epoch_rate = 0.0
     for batch in validation_generator:
-#         features, labels = batch[IMG].reshape((-1, 1, 1, opt.inputLength)), batch[LABEL]
-        features, labels = batch[IMG], batch[LABEL]
+        #features, labels = batch[IMG].reshape((-1, 1, 1, opt.inputLength)), batch[LABEL]
+        features, labels = batch[IMG][-1,:,:,:], batch[LABEL]
+        
+        start = time.clock()
+        features = torch.FloatTensor(scat.scattering_transform(tensor_to_numpy(features)))
+        end = time.clock()
+        
+        print(features.shape, end-start)
+
+        
+        
         output = model.forward(features.type(FloatTensor)).mean(dim=0).reshape((1, 10))
 
         loss = kl_loss(output, labels.type(FloatTensor))
@@ -209,7 +228,11 @@ if __name__ == '__main__':
     global_train_error = []
     global_val_error = []
     n_folds = opt.nFolds
+    
+    scat = Scattering(AVERAGING_WINDOW, SIGNAL_LENGTH, PRECISION)
 
+    writer = SummaryWriter(log_dir=opt.tensorboardDir) if opt.tensorboardDir is not None else None
+    
     for test_fold in opt.splits:
         model = create_model(opt)
         optimizer = create_optimizer(model, opt)
@@ -231,17 +254,25 @@ if __name__ == '__main__':
             model, optimizer, epoch_train_loss, epoch_error_rate = train(model,
                                                                          optimizer,
                                                                          kl_loss,
-                                                                         training_generator)
+                                                                         training_generator, scat)
 
-            epoch_val_loss, val_epoch_rate = validate(model, validation_generator)
-
-            train_loss.append(np.mean(epoch_train_loss))
-            val_loss.append(np.mean(epoch_val_loss))
-
-            train_error_rate.append(accuracy_on_batch(epoch_error_rate, training_generator, opt.batchSize))
-            val_error_rate.append(accuracy_on_batch(val_epoch_rate, validation_generator, 1))
+            writer.add_scalar('cnn1/loss/train', np.mean(epoch_train_loss), epoch)
+            writer.add_scalar('cnn1/error_rate/train', accuracy_on_batch(epoch_error_rate, training_generator, opt.batchSize), epoch)
             
-            print("train_acc: {}, val_acc: {}".format(train_error_rate, val_error_rate))
+            train_loss.append(np.mean(epoch_train_loss))
+            train_error_rate.append(accuracy_on_batch(epoch_error_rate, training_generator, opt.batchSize))
+            print("train_error_rate: {}".format(train_error_rate))
+            
+            
+            if epoch%20==0 and epoch!=0:
+                epoch_val_loss, val_epoch_rate = validate(model, validation_generator, scat)
+                writer.add_scalar('cnn1/loss/val', np.mean(epoch_val_loss), epoch)
+                writer.add_scalar('cnn1/error_rate/val', accuracy_on_batch(val_epoch_rate, validation_generator, 1), epoch)
+
+                val_loss.append(np.mean(epoch_val_loss))
+                val_error_rate.append(accuracy_on_batch(val_epoch_rate, validation_generator, 1))
+                print("val_error_rate: {}".format(val_error_rate))
+
             
 
         torch.save(model, os.path.join(opt.save, "model_{}.bin".format(test_fold)))
@@ -255,11 +286,13 @@ if __name__ == '__main__':
         global_val_loss.append(val_loss)
         global_val_error.append(val_error_rate)
 
+    
+    writer.close()
     report = {
                 "train_loss": global_train_loss,
-                "train_acc": global_train_error,
+                "train_error": global_train_error,
                 "val_loss": global_val_loss,
-                "val_acc": global_val_error,
+                "val_error": global_val_error,
                 "opt": opt
     }
 
